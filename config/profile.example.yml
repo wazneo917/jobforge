@@ -1,0 +1,32 @@
+candidate:
+  name: Your Name
+  email: you@example.com
+  location: Germany
+  timezone: Europe/Berlin
+  linkedin: https://www.linkedin.com/in/your-handle
+  portfolio: https://your-site.example
+
+target_roles:
+  - Data Engineer
+  - Analytics Engineer
+  - Applied AI Engineer
+
+narrative:
+  headline: "Builder of reliable data and AI systems"
+  superpowers:
+    - Python
+    - SQL
+    - automation
+    - agentic workflows
+  proof_points:
+    - "Built automated pipelines for job discovery and application prep"
+
+compensation:
+  currency: EUR
+  target: 70000
+  minimum: 60000
+
+location:
+  country: Germany
+  visa_status: unrestricted
+  remote_ok: true

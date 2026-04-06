@@ -1,0 +1,22 @@
+{
+  "name": "jobforge",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Open-source job search pipeline combining discovery, evaluation, application prep, and tracking.",
+  "type": "module",
+  "scripts": {
+    "verify": "node scripts/verify.mjs",
+    "normalize": "node scripts/normalize.mjs",
+    "dedup": "node scripts/dedup.mjs",
+    "merge": "node scripts/merge.mjs",
+    "pipeline": "node scripts/pipeline.mjs",
+    "scan": "node scripts/scan.mjs",
+    "evaluate": "node scripts/evaluate.mjs",
+    "apply": "node scripts/apply.mjs"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wazneo917/jobforge"
+  }
+}

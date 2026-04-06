@@ -1,0 +1,21 @@
+tracked_companies:
+  - name: ExampleCo
+    urls:
+      - https://example.com/careers
+
+search_queries:
+  - site: greenhouse
+    query: data engineer germany
+  - site: ashby
+    query: analytics engineer remote
+
+title_filter:
+  positive:
+    - data engineer
+    - analytics engineer
+    - applied ai
+  negative:
+    - senior
+    - lead
+    - principal
+    - manager
