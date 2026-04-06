@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { readText, writeText, nextReportNumber, REPORTS, OUTPUT, slugify, DATA } from './lib.mjs';
+import { generatePdf } from './pdfgen.mjs';
 
 const jobId = process.argv[2] || 'sample-jd-001';
 const jdPath = path.join('jds', `${jobId}.md`);
@@ -14,9 +15,12 @@ const date = '2026-04-06';
 const companySlug = slugify(company);
 const reportFile = path.join(REPORTS, `${reportNum}-${companySlug}-${date}.md`);
 const pdfFile = path.join(OUTPUT, `${reportNum}-${companySlug}-${date}.pdf`);
-const report = `# ${title}\n\n- Company: ${company}\n- Score: ${score}\n- Source: local\n- Recommendation: ${status}\n`;
+const report = `# ${title}\n\n- Company: ${company}\n- Score: ${score}/5\n- Status: ${status}\n- Generated: ${new Date().toISOString()}\n\n## Summary\n\nThis role matches well with your profile.\n`;
 writeText(reportFile, report);
-writeText(pdfFile, `%PDF-1.4\n% JobForge placeholder PDF for ${company}\n`);
+
+// Generate real PDF
+generatePdf(reportFile, pdfFile).catch(console.error);
+
 const evalPath = path.join(DATA, 'evaluated.json');
 const current = fs.existsSync(evalPath) ? JSON.parse(fs.readFileSync(evalPath, 'utf8')) : { jobs: [] };
 const jobs = current.jobs.filter(j => j.id !== jobId).concat({ jobId, company, title, score, status, reportFile, pdfFile, evaluatedAt: new Date().toISOString() });

@@ -1,19 +1,5 @@
 {
-  "generatedAt": "2026-04-06T08:55:56.938Z",
-  "jobs": [
-    {
-      "id": "sample-jd-001",
-      "title": "Data Engineer",
-      "company": "Acme Data",
-      "source": "local",
-      "path": "jds/sample-jd-001.md"
-    },
-    {
-      "id": "sample-jd-002",
-      "title": "Applied AI Engineer",
-      "company": "Nova AI",
-      "source": "local",
-      "path": "jds/sample-jd-002.md"
-    }
-  ]
+  "syncedAt": "2026-04-06T21:17:20.480Z",
+  "source": "lifeos",
+  "jobs": []
 }
