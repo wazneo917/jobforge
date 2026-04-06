@@ -1,13 +1,15 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { parsePipelineMd, savePipelineMd } from './lib.mjs';
 import { execSync } from 'node:child_process';
 
-const { file, text } = parsePipelineMd();
-const pending = text.includes('local:sample-jd-001') ? ['sample-jd-001', 'sample-jd-002'] : [];
+const { text } = parsePipelineMd();
+const pending = [];
+for (const id of ['sample-jd-001', 'sample-jd-002']) {
+  if (text.includes(`- [ ] local:${id}`)) pending.push(id);
+}
 let next = text;
 for (const id of pending) {
   execSync(`node scripts/evaluate.mjs ${id}`, { stdio: 'inherit' });
+  execSync(`node scripts/tracker.mjs ${id}`, { stdio: 'inherit' });
   next = next.replace(`- [ ] local:${id}`, `- [x] local:${id}`);
 }
 savePipelineMd(next);

@@ -1,0 +1,25 @@
+{
+  "updatedAt": "2026-04-06T13:31:27.844Z",
+  "jobs": [
+    {
+      "jobId": "sample-jd-001",
+      "company": "Acme Data",
+      "title": "Data Engineer",
+      "score": 4.2,
+      "status": "shortlisted",
+      "reportFile": "/home/waz/.openclaw/workspace/jobforge/reports/005-acme-data-2026-04-06.md",
+      "pdfFile": "/home/waz/.openclaw/workspace/jobforge/output/005-acme-data-2026-04-06.pdf",
+      "evaluatedAt": "2026-04-06T13:31:27.761Z"
+    },
+    {
+      "jobId": "sample-jd-002",
+      "company": "Nova AI",
+      "title": "Applied AI Engineer",
+      "score": 4.6,
+      "status": "apply",
+      "reportFile": "/home/waz/.openclaw/workspace/jobforge/reports/006-nova-ai-2026-04-06.md",
+      "pdfFile": "/home/waz/.openclaw/workspace/jobforge/output/006-nova-ai-2026-04-06.pdf",
+      "evaluatedAt": "2026-04-06T13:31:27.844Z"
+    }
+  ]
+}
