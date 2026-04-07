@@ -12,11 +12,15 @@
     "pipeline": "node scripts/pipeline.mjs",
     "scan": "node scripts/scan.mjs",
     "evaluate": "node scripts/evaluate.mjs",
-    "apply": "node scripts/apply.mjs"
+    "apply": "node scripts/apply.mjs",
+    "server": "node server.js"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/wazneo917/jobforge"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
   }
 }

@@ -72,22 +72,12 @@
   </div>
   
   <script>
+    const API = '';
+    
     async function loadData() {
       try {
-        const [trackerRes, appsRes] = await Promise.all([
-          fetch('data/tracker.json'),
-          fetch('data/applications.json')
-        ]);
-        
-        const tracker = await trackerRes.json().catch(() => ({ entries: [] }));
-        const apps = await appsRes.json().catch(() => ({ entries: [] }));
-        
-        const entries = [...(tracker.entries || []), ...(apps.entries || [])];
-        const unique = {};
-        for (const e of entries) {
-          unique[e.id] = e;
-        }
-        const jobs = Object.values(unique);
+        const res = await fetch(API + '/api/jobs');
+        const jobs = await res.json();
         
         // Stats
         const counts = { applied: 0, interview: 0, rejected: 0 };
