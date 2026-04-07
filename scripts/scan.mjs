@@ -93,21 +93,48 @@ async function scan(query = 'data engineer', location = 'Germany') {
     return title.includes(queryLower);
   });
   
-  // Merge with analysis scores
+  // Merge with analysis scores - be more flexible in matching
   const scoredJobs = filteredJobs.map(job => {
-    // Match by job_title + company
-    const analysisEntry = analysis.find(a => 
-      (a.job_title === job.job_title && a.company === job.company) ||
-      (a.job_url && job.job_id && a.job_url.includes(job.job_id.split('_')[1]))
-    );
+    // Try multiple matching strategies
+    let analysisEntry = null;
+    
+    // Strategy 1: Match by Indeed ID in URL
+    if (job.job_id?.startsWith('indeed_')) {
+      const indeedId = job.job_id.split('_')[1];
+      analysisEntry = analysis.find(a => a.job_url?.includes(indeedId));
+    }
+    
+    // Strategy 2: Partial title match + company
+    if (!analysisEntry) {
+      const jobTitleLower = (job.job_title || '').toLowerCase();
+      const jobCompanyLower = (job.company || '').toLowerCase();
+      analysisEntry = analysis.find(a => {
+        const aTitle = (a.job_title || '').toLowerCase();
+        const aCompany = (a.company || '').toLowerCase();
+        return (aTitle.includes('data engineer') && jobTitleLower.includes('data engineer')) &&
+               (aCompany.includes(jobCompanyLower.split(' ')[0]) || jobCompanyLower.includes(aCompany.split(' ')[0]));
+      });
+    }
+    
+    // Strategy 3: Just title match
+    if (!analysisEntry) {
+      const jobTitleLower = (job.job_title || '').toLowerCase();
+      analysisEntry = analysis.find(a => 
+        (a.job_title || '').toLowerCase() === jobTitleLower
+      );
+    }
+    
+    const score = analysisEntry?.relevance_score ? parseFloat(analysisEntry.relevance_score) : 0;
+    const priority = score >= 80 ? 'HIGH' : score >= 60 ? 'MEDIUM' : 'LOW';
+    
     return {
       ...job,
       id: job.job_id,
       title: job.job_title,
       role: job.job_title,
       description: '',
-      score: analysisEntry?.relevance_score ? parseFloat(analysisEntry.relevance_score) : 0,
-      priority: analysisEntry?.application_priority || (analysisEntry?.relevance_score >= 80 ? 'HIGH' : analysisEntry?.relevance_score >= 60 ? 'MEDIUM' : 'LOW'),
+      score,
+      priority,
       matchReason: analysisEntry?.match_reason || '',
       salaryRange: analysisEntry?.salary_range || job.salary || ''
     };
