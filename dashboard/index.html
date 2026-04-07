@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>JobForge Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #1a1a1a; margin-bottom: 20px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
+    .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .stat-card h3 { font-size: 14px; color: #666; margin-bottom: 8px; }
+    .stat-card .value { font-size: 32px; font-weight: bold; color: #0066cc; }
+    .stat-card.apply h3 { color: #22c55e; }
+    .stat-card.interview h3 { color: #f59e0b; }
+    .stat-card.rejected h3 { color: #ef4444; }
+    table { width: 100%; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: 600; color: #444; }
+    tr:hover { background: #f8f9fa; }
+    .status { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+    .status.new { background: #e0e7ff; color: #3730a3; }
+    .status.shortlisted { background: #fef3c7; color: #92400e; }
+    .status.apply { background: #dcfce7; color: #166534; }
+    .status.applied { background: #22c55e; color: white; }
+    .status.interview { background: #f59e0b; color: white; }
+    .status.rejected { background: #ef4444; color: white; }
+    .status.offer { background: #0066cc; color: white; }
+    .score { color: #0066cc; font-weight: 500; }
+    .refresh { float: right; padding: 8px 16px; background: #0066cc; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    .refresh:hover { background: #0052a3; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📋 JobForge Dashboard <button class="refresh" onclick="loadData()">Refresh</button></h1>
+    
+    <div class="stats">
+      <div class="stat-card">
+        <h3>Total Tracked</h3>
+        <div class="value" id="total">0</div>
+      </div>
+      <div class="stat-card apply">
+        <h3>Applied</h3>
+        <div class="value" id="applied">0</div>
+      </div>
+      <div class="stat-card interview">
+        <h3>Interview</h3>
+        <div class="value" id="interview">0</div>
+      </div>
+      <div class="stat-card rejected">
+        <h3>Rejected</h3>
+        <div class="value" id="rejected">0</div>
+      </div>
+    </div>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Role</th>
+          <th>Source</th>
+          <th>Score</th>
+          <th>Status</th>
+          <th>Updated</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody id="jobs"></tbody>
+    </table>
+  </div>
+  
+  <script>
+    async function loadData() {
+      try {
+        const [trackerRes, appsRes] = await Promise.all([
+          fetch('data/tracker.json'),
+          fetch('data/applications.json')
+        ]);
+        
+        const tracker = await trackerRes.json().catch(() => ({ entries: [] }));
+        const apps = await appsRes.json().catch(() => ({ entries: [] }));
+        
+        const entries = [...(tracker.entries || []), ...(apps.entries || [])];
+        const unique = {};
+        for (const e of entries) {
+          unique[e.id] = e;
+        }
+        const jobs = Object.values(unique);
+        
+        // Stats
+        const counts = { applied: 0, interview: 0, rejected: 0 };
+        for (const j of jobs) {
+          if (j.status === 'applied' || j.status === 'apply') counts.applied++;
+          if (j.status === 'interview') counts.interview++;
+          if (j.status === 'rejected') counts.rejected++;
+        }
+        
+        document.getElementById('total').textContent = jobs.length;
+        document.getElementById('applied').textContent = counts.applied;
+        document.getElementById('interview').textContent = counts.interview;
+        document.getElementById('rejected').textContent = counts.rejected;
+        
+        // Table
+        const tbody = document.getElementById('jobs');
+        tbody.innerHTML = jobs.map(j => `
+          <tr>
+            <td>${j.company || 'Unknown'}</td>
+            <td>${j.role || j.title || 'Unknown'}</td>
+            <td>${j.source || '-'}</td>
+            <td class="score">${j.score ? j.score.toFixed(1) : '-'}</td>
+            <td><span class="status ${j.status || 'new'}">${j.status || 'new'}</span></td>
+            <td>${j.updatedAt ? new Date(j.updatedAt).toLocaleDateString() : '-'}</td>
+            <td>${j.notes?.length ? j.notes.length + ' notes' : '-'}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    loadData();
+  </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "updatedAt": "2026-04-07T02:01:52.966Z",
+  "entries": [
+    {
+      "jobId": "sample-jd-001",
+      "resume": "output/sample-jd-001-unknown-resume-2026-04-07.pdf",
+      "coverLetter": "output/sample-jd-001-unknown-cl-2026-04-07.pdf",
+      "status": "generated",
+      "generatedAt": "2026-04-07T02:01:52.966Z"
+    }
+  ]
+}

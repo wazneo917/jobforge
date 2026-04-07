@@ -1,0 +1,12 @@
+# Cover Letter
+
+Dear Hiring Manager,
+
+I am writing to express my interest in the undefined position at undefined.
+
+I am enthusiastic about this opportunity and believe my skills in data engineering make me a strong fit.
+
+Thank you for considering my application.
+
+Best regards,
+Sri Haritha Kanduri
