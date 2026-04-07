@@ -1,100 +1,165 @@
-import { writeText, ensureDir, slugify, DATA, JDS } from './lib.mjs';
-import { SOURCES, getSource, listSources } from './sources.mjs';
+// JobForge Scanner - Uses LifeOS pipeline data
+import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { writeText, ensureDir, DATA, JDS } from './lib.mjs';
 
-const SEARCH_QUERY = process.argv[2] || 'data engineer';
-const LOCATION = process.argv[3] || 'Germany';
-const LIMIT = parseInt(process.argv[4]) || 20;
+const LIFEOS_JOBS = '/home/waz/.openclaw/workspace/lifeos/storage/jobs/haritha_dataE_germany/raw/jobs.json';
+const LIFEOS_ANALYSIS = '/home/waz/.openclaw/workspace/lifeos/storage/jobs/haritha_dataE_germany/runs';
 
-ensureDir(JDS);
+// Ensure directories exist
 ensureDir(DATA);
+ensureDir(JDS);
 
-// Generate unique job ID
-function genJobId(source, extId) {
-  return `${source}:${extId}`;
-}
-
-// Parse job from source (simplified - real impl would use browser)
-function parseJob(source, raw) {
-  return {
-    id: genJobId(source.id, raw.id),
-    source: source.id,
-    sourceName: source.name,
-    externalId: raw.id,
-    title: raw.title,
-    company: raw.company,
-    location: raw.location,
-    url: raw.url,
-    scrapedAt: new Date().toISOString()
-  };
-}
-
-// Load existing jobs to avoid duplicates
-function loadExisting() {
+// Load jobs from LifeOS pipeline
+function loadJobsFromLifeOS() {
   try {
-    return require('./jobs.json')?.jobs || [];
-  } catch {
+    const data = JSON.parse(fs.readFileSync(LIFEOS_JOBS, 'utf8'));
+    return data.jobs || [];
+  } catch (err) {
+    console.error('Failed to load LifeOS jobs:', err.message);
+    return [];
+  }
+}
+
+// Simple CSV parser (handles basic quoted fields)
+function parseCsvLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+// Get latest analysis CSV
+function getLatestAnalysis() {
+  try {
+    const runsDir = LIFEOS_ANALYSIS;
+    const runs = fs.readdirSync(runsDir)
+      .filter(f => fs.existsSync(path.join(runsDir, f, 'analysis.csv')))
+      .filter(f => f.match(/^20\d{6}[_T]/) || f.match(/^20\d{2}-\d{2}-\d{2}[_T]/))
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+    
+    if (runs.length === 0) return [];
+    
+    const latestRun = runs[0];
+    const csvPath = path.join(runsDir, latestRun, 'analysis.csv');
+    if (!fs.existsSync(csvPath)) return [];
+    
+    const content = fs.readFileSync(csvPath, 'utf8');
+    const lines = content.trim().split('\n');
+    const headers = parseCsvLine(lines[0]);
+    
+    const jobs = [];
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const values = parseCsvLine(lines[i]);
+      const job = {};
+      headers.forEach((h, idx) => job[h] = values[idx] || '');
+      jobs.push(job);
+    }
+    return jobs;
+  } catch (err) {
+    console.error('Failed to load analysis:', err.message);
     return [];
   }
 }
 
 // Main scan function
-async function scan() {
-  const jobs = loadExisting();
-  const existingIds = new Set(jobs.map(j => j.id));
-  const newJobs = [];
+async function scan(query = 'data engineer', location = 'Germany') {
+  console.error(`Loading jobs from LifeOS pipeline...`);
   
-  console.error(`Scanning for "${SEARCH_QUERY}" in ${LOCATION}...`);
+  const jobs = loadJobsFromLifeOS();
+  const analysis = getLatestAnalysis();
   
-  for (const source of listSources()) {
-    try {
-      console.error(`  Scanning ${source.name}...`);
-      const url = source.searchUrl(SEARCH_QUERY, LOCATION);
-      
-      // Use web_fetch for lightweight pages, browser for JS-heavy ones
-      // For now, just log the URLs - real scraping needs browser
-      console.error(`    URL: ${url}`);
-      
-      // Placeholder: in production, we'd use browser automation here
-      // For now, show how the pipeline would work
-      newJobs.push({
-        source: source.id,
-        url: url,
-        note: 'URL generated - needs browser for actual scraping'
-      });
-      
-    } catch (err) {
-      console.error(`    Error: ${err.message}`);
-    }
-  }
+  console.error(`Loaded ${jobs.length} jobs from ${LIFEOS_JOBS}`);
+  console.error(`Loaded ${analysis.length} analyzed jobs`);
   
-  // Save job URLs to pipeline
-  const pipelinePath = path.join(DATA, 'pipeline.md');
-  let pipeline = '# Pendentes\n';
-  for (const j of newJobs) {
-    pipeline += `- [ ] ${j.source}:${j.url}\n`;
-  }
-  writeText(pipelinePath, pipeline);
+  // Filter by query
+  const queryLower = query.toLowerCase();
+  const filteredJobs = jobs.filter(j => {
+    const title = (j.job_title || j.title || '').toLowerCase();
+    return title.includes(queryLower);
+  });
   
-  // Save jobs.json
+  // Merge with analysis scores
+  const scoredJobs = filteredJobs.map(job => {
+    // Match by job_title + company
+    const analysisEntry = analysis.find(a => 
+      (a.job_title === job.job_title && a.company === job.company) ||
+      (a.job_url && job.job_id && a.job_url.includes(job.job_id.split('_')[1]))
+    );
+    return {
+      ...job,
+      id: job.job_id,
+      title: job.job_title,
+      role: job.job_title,
+      description: '',
+      score: analysisEntry?.relevance_score ? parseFloat(analysisEntry.relevance_score) : 0,
+      priority: analysisEntry?.application_priority || (analysisEntry?.relevance_score >= 80 ? 'HIGH' : analysisEntry?.relevance_score >= 60 ? 'MEDIUM' : 'LOW'),
+      matchReason: analysisEntry?.match_reason || '',
+      salaryRange: analysisEntry?.salary_range || job.salary || ''
+    };
+  }).sort((a, b) => b.score - a.score);
+  
+  // Save to JobForge data
   const jobsPath = path.join(DATA, 'jobs.json');
   writeText(jobsPath, JSON.stringify({
     scannedAt: new Date().toISOString(),
-    query: SEARCH_QUERY,
-    location: LOCATION,
-    jobs: jobs.concat(newJobs)
+    query,
+    location,
+    jobs: scoredJobs
   }, null, 2));
   
+  // Save pipeline markdown
+  let pipeline = '# Pipeline\n\n';
+  pipeline += `## Scanned: ${new Date().toISOString()}\n`;
+  pipeline += `## Query: ${query} | Location: ${location}\n`;
+  pipeline += `## Total: ${scoredJobs.length} jobs\n\n`;
+  
+  pipeline += '### High Priority\n';
+  scoredJobs.filter(j => j.priority === 'HIGH' || j.score >= 80).forEach(j => {
+    pipeline += `- [ ] ${j.company}: ${j.title} (${j.score}/100)\n`;
+  });
+  
+  pipeline += '\n### Medium Priority\n';
+  scoredJobs.filter(j => j.priority === 'MEDIUM' || (j.score >= 60 && j.score < 80)).forEach(j => {
+    pipeline += `- [ ] ${j.company}: ${j.title} (${j.score}/100)\n`;
+  });
+  
+  pipeline += '\n### Low Priority\n';
+  scoredJobs.filter(j => j.priority === 'LOW' || j.score < 60).slice(0, 20).forEach(j => {
+    pipeline += `- [ ] ${j.company}: ${j.title} (${j.score}/100)\n`;
+  });
+  
+  const pipelinePath = path.join(DATA, 'pipeline.md');
+  writeText(pipelinePath, pipeline);
+  
   console.log(JSON.stringify({
-    scanned: newJobs.length,
-    query: SEARCH_QUERY,
-    location: LOCATION,
-    jobs: newJobs
+    scanned: scoredJobs.length,
+    query,
+    location,
+    highPriority: scoredJobs.filter(j => j.priority === 'HIGH').length,
+    mediumPriority: scoredJobs.filter(j => j.priority === 'MEDIUM').length,
+    jobs: scoredJobs.slice(0, 10)
   }, null, 2));
 }
 
-scan().catch(err => {
+// CLI
+const query = process.argv[2] || 'data engineer';
+const location = process.argv[3] || 'Germany';
+scan(query, location).catch(err => {
   console.error(err);
   process.exit(1);
 });

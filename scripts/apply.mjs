@@ -1,141 +1,230 @@
-// JobForge Apply Module - Generate tailored resumes & cover letters
+// JobForge Apply - Generate CVs & Cover Letters + Form Auto-Fill
 import fs from 'node:fs';
 import path from 'node:path';
-import { writeText, slugify, REPORTS, OUTPUT, DATA } from './lib.mjs';
-
-// Configuration
-const TEMPLATES = {
-  resume: 'Resume_SriHaritha_Kanduri_2026.pdf',
-  coverLetter: 'Cover_Letter_805a.pdf'
-};
+import { writeText, slugify, ensureDir, DATA, REPORTS, OUTPUT } from './lib.mjs';
 
 const LIFEOS_BASE = '/home/waz/.openclaw/workspace/lifeos/storage/jobs/haritha_dataE_germany/raw';
-const OUTPUT_DIR = 'output';
-const REPORTS_DIR = 'reports';
+
+// Profile data
+const PROFILE = {
+  name: 'Sri Haritha Kanduri',
+  email: 'haritha.kanduri@gmail.com',
+  phone: '+49 XXX XXXX',
+  location: 'Germany',
+  linkedin: 'linkedin.com/in/haritha-kanduri',
+  github: 'github.com/haritha-kanduri',
+  summary: 'Data Engineer with experience in Python, SQL, AWS, and ETL pipelines.',
+  skills: ['Python', 'SQL', 'AWS', 'Airflow', 'Spark', 'Kafka', 'PostgreSQL', 'Docker']
+};
 
 // Ensure directories exist
-function ensureDir(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
+ensureDir(DATA);
+ensureDir(REPORTS);
+ensureDir(OUTPUT);
 
-// Load base templates
-function loadTemplates() {
-  return {
-    resume: path.join(LIFEOS_BASE, TEMPLATES.resume),
-    coverLetter: path.join(LIFEOS_BASE, TEMPLATES.coverLetter)
-  };
-}
-
-// Generate tailored resume (placeholder - copies base for now)
-async function generateResume(jobData, outputPath) {
-  const templates = loadTemplates();
-  if (fs.existsSync(templates.resume)) {
-    fs.copyFileSync(templates.resume, outputPath);
-    return outputPath;
+// Load job data
+function loadJob(jobId) {
+  const jobsPath = path.join(DATA, 'jobs.json');
+  try {
+    const data = JSON.parse(fs.readFileSync(jobsPath, 'utf8'));
+    return data.jobs?.find(j => j.id === jobId || j.job_id === jobId);
+  } catch {
+    return null;
   }
-  // Fallback placeholder
-  writeText(outputPath.replace('.pdf', '.txt'), `Resume for ${jobData.company} - ${jobData.role}`);
-  return outputPath;
 }
 
-// Generate tailored cover letter
-async function generateCoverLetter(jobData, outputPath) {
-  const templates = loadTemplates();
-  const content = generateClContent(jobData);
-  
-  // For now, create a text file - real impl would use PDF lib
-  const txtPath = outputPath.replace('.pdf', '.txt');
-  writeText(txtPath, content);
-  
-  if (fs.existsSync(templates.coverLetter)) {
-    fs.copyFileSync(templates.coverLetter, outputPath);
-  }
-  return outputPath;
-}
-
+// Generate tailored cover letter content
 function generateClContent(jobData) {
-  return `# Cover Letter
-
-Dear Hiring Manager,
-
-I am writing to express my interest in the ${jobData.role} position at ${jobData.company}.
-
-${getCustomParagraph(jobData)}
-
-Thank you for considering my application.
-
-Best regards,
-Sri Haritha Kanduri
-`;
+  const paragraphs = [];
+  
+  // Opening - specific to company/role
+  paragraphs.push(`Dear Hiring Manager,`);
+  paragraphs.push(`I am writing to express my interest in the ${jobData.title || jobData.role} position at ${jobData.company}.`);
+  
+  // Custom paragraph based on job requirements
+  const desc = (jobData.description || '').toLowerCase();
+  let customPara = '';
+  
+  if (desc.includes('airflow')) {
+    customPara = `My experience with Apache Airflow for orchestrating ETL pipelines aligns well with your requirements. I have designed and maintained production-grade data pipelines that process large-scale datasets reliably.`;
+  } else if (desc.includes('aws')) {
+    customPara = `With hands-on experience in AWS ecosystem including S3, EC2, Lambda, and RDS, I am well-equipped to contribute to your cloud-based data infrastructure.`;
+  } else if (desc.includes('python')) {
+    customPara = `My strong Python skills enable me to build efficient data processing scripts and automation tools. I am proficient in pandas, NumPy, and PySpark for data transformation.`;
+  } else if (desc.includes('sql') || desc.includes('postgresql')) {
+    customPara = `I have extensive experience writing complex SQL queries and optimizing database performance. I am comfortable designing schemas and working with PostgreSQL, MySQL, and cloud databases.`;
+  } else {
+    customPara = `I am enthusiastic about contributing to a data-driven team and believe my technical background in data engineering makes me a strong fit for this role.`;
+  }
+  paragraphs.push(customPara);
+  
+  // Closing
+  paragraphs.push(`Thank you for considering my application. I look forward to discussing how I can contribute to your team's success.`);
+  paragraphs.push(`Best regards,`);
+  paragraphs.push(`${PROFILE.name}`);
+  
+  return paragraphs.join('\n\n');
 }
 
-function getCustomParagraph(jobData) {
-  // Customize based on job requirements
-  if (jobData.skills?.includes('Python')) {
-    return "With strong Python skills and experience in data engineering, I am excited about the opportunity to contribute to your team.";
-  }
-  if (jobData.skills?.includes('AWS')) {
-    return "My experience with AWS cloud infrastructure aligns well with your technical requirements.";
-  }
-  return "I am enthusiastic about this opportunity and believe my skills in data engineering make me a strong fit.";
+// Generate resume sections tailored to job
+function generateResumeSections(jobData) {
+  const sections = [];
+  const desc = (jobData.description || '').toLowerCase();
+  
+  // Summary
+  sections.push({
+    title: 'Professional Summary',
+    content: PROFILE.summary
+  });
+  
+  // Skills - prioritize job-relevant ones
+  let relevantSkills = [...PROFILE.skills];
+  if (desc.includes('airflow')) relevantSkills.unshift('Apache Airflow');
+  if (desc.includes('aws')) relevantSkills.unshift('AWS');
+  if (desc.includes('spark')) relevantSkills.unshift('PySpark');
+  if (desc.includes('kafka')) relevantSkills.unshift('Kafka');
+  
+  sections.push({
+    title: 'Technical Skills',
+    content: relevantSkills.slice(0, 10).join(' • ')
+  });
+  
+  // Experience (placeholder - real impl would pull from profile)
+  sections.push({
+    title: 'Professional Experience',
+    content: `Data Engineer • Company Name • 2022-Present
+• Designed and maintained ETL pipelines using Airflow
+• Processed 1M+ records daily using Python and SQL
+• AWS cloud infrastructure management`
+  });
+  
+  return sections;
 }
 
-// Main apply function
+// Main apply function - generates CV/CL for a job
 async function apply(jobId, options = {}) {
-  const { resume = true, coverLetter = true } = options;
+  const jobData = loadJob(jobId);
   
-  // Load job data
-  const jobsFile = path.join(DATA, 'jobs.json');
-  const jobs = fs.existsSync(jobsFile) ? JSON.parse(fs.readFileSync(jobsFile, 'utf8')).jobs : [];
-  const jobData = jobs.find(j => j.id === jobId) || {};
-  
-  ensureDir(OUTPUT_DIR);
-  ensureDir(REPORTS_DIR);
+  if (!jobData) {
+    throw new Error(`Job not found: ${jobId}`);
+  }
   
   const date = new Date().toISOString().split('T')[0];
   const companySlug = slugify(jobData.company || 'unknown');
-  const roleSlug = slugify(jobData.role || 'role');
+  const roleSlug = slugify(jobData.title || jobData.role || 'role');
   
   const results = {};
   
-  if (resume) {
-    const resumePath = path.join(OUTPUT_DIR, `${jobId}-${companySlug}-resume-${date}.pdf`);
-    results.resume = await generateResume(jobData, resumePath);
+  // Generate cover letter
+  if (options.coverLetter !== false) {
+    const clContent = generateClContent(jobData);
+    const clPath = path.join(OUTPUT, `${jobId}-${companySlug}-cl-${date}.md`);
+    writeText(clPath, clContent);
+    results.coverLetter = clPath;
+    console.error(`Generated cover letter: ${clPath}`);
   }
   
-  if (coverLetter) {
-    const clPath = path.join(OUTPUT_DIR, `${jobId}-${companySlug}-cl-${date}.pdf`);
-    results.coverLetter = await generateCoverLetter(jobData, clPath);
+  // Generate resume sections
+  if (options.resume !== false) {
+    const sections = generateResumeSections(jobData);
+    const resumePath = path.join(OUTPUT, `${jobId}-${companySlug}-resume-${date}.md`);
+    let resumeContent = `# ${PROFILE.name}\n`;
+    resumeContent += `${PROFILE.email} | ${PROFILE.phone} | ${PROFILE.location}\n`;
+    resumeContent += `${PROFILE.linkedin}\n\n`;
+    
+    sections.forEach(s => {
+      resumeContent += `## ${s.title}\n${s.content}\n\n`;
+    });
+    
+    writeText(resumePath, resumeContent);
+    results.resume = resumePath;
+    console.error(`Generated resume: ${resumePath}`);
   }
   
-  // Update applications tracker
-  const applyFile = path.join(DATA, 'applications.json');
-  const current = fs.existsSync(applyFile) ? JSON.parse(fs.readFileSync(applyFile, 'utf8')) : { entries: [] };
-  const entries = current.entries.filter(e => e.jobId !== jobId).concat({
-    jobId,
-    company: jobData.company,
-    role: jobData.role,
-    ...results,
-    status: 'generated',
-    generatedAt: new Date().toISOString()
-  });
-  writeText(applyFile, JSON.stringify({ updatedAt: new Date().toISOString(), entries }, null, 2));
+  // Generate full report
+  const reportPath = path.join(REPORTS, `${jobId}-${companySlug}-report.md`);
+  let report = `# Job Application Report\n\n`;
+  report += `**Company:** ${jobData.company}\n`;
+  report += `**Role:** ${jobData.title || jobData.role}\n`;
+  report += `**Location:** ${jobData.location}\n`;
+  report += `**Score:** ${jobData.score || 'N/A'}\n`;
+  report += `**Priority:** ${jobData.priority || 'N/A'}\n`;
+  report += `**URL:** ${jobData.url}\n\n`;
+  report += `## Match Reason\n${jobData.matchReason || 'N/A'}\n\n`;
+  report += `## Cover Letter\n\n${clContent}\n`;
+  writeText(reportPath, report);
+  results.report = reportPath;
+  console.error(`Generated report: ${reportPath}`);
   
   return results;
 }
 
+// Form auto-fill function (placeholder for Playwright)
+async function autofill(jobId, formUrl) {
+  const jobData = loadJob(jobId);
+  
+  if (!jobData) {
+    throw new Error(`Job not found: ${jobId}`);
+  }
+  
+  // Generate form field answers
+  const answers = {
+    'name': PROFILE.name,
+    'email': PROFILE.email,
+    'phone': PROFILE.phone,
+    'linkedin': PROFILE.linkedin,
+    'github': PROFILE.github,
+    'years_experience': '3',
+    'current_company': 'Current Company',
+    'notice_period': '2 weeks',
+    'Visa': 'Yes, I have valid work authorization',
+    'relocation': 'Open to remote and hybrid'
+  };
+  
+  console.error(`\n=== Form Auto-Fill Ready ===`);
+  console.error(`Job: ${jobData.company} - ${jobData.title}`);
+  console.error(`Form URL: ${formUrl}`);
+  console.error(`\nCopy these answers:\n`);
+  
+  Object.entries(answers).forEach(([field, value]) => {
+    console.error(`${field}: ${value}`);
+  });
+  
+  console.error(`\nCover letter:\n${generateClContent(jobData)}\n`);
+  
+  return { formUrl, answers, coverLetter: generateClContent(jobData) };
+}
+
 // CLI
-const jobId = process.argv[2];
-if (jobId) {
-  apply(jobId).then(results => {
+const command = process.argv[2];
+const arg1 = process.argv[3];
+
+if (command === 'apply' && arg1) {
+  apply(arg1).then(results => {
     console.log(JSON.stringify(results, null, 2));
   }).catch(err => {
     console.error(err);
     process.exit(1);
   });
+} else if (command === 'autofill' && arg1) {
+  autofill(arg1, arg2).then(results => {
+    console.log(JSON.stringify(results, null, 2));
+  }).catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+} else if (command === 'list') {
+  const jobsPath = path.join(DATA, 'jobs.json');
+  try {
+    const data = JSON.parse(fs.readFileSync(jobsPath, 'utf8'));
+    console.log(JSON.stringify(data.jobs?.slice(0, 20) || [], null, 2));
+  } catch {
+    console.log('[]');
+  }
 } else {
-  // List applications
-  const applyFile = path.join(DATA, 'applications.json');
-  const current = fs.existsSync(applyFile) ? JSON.parse(fs.readFileSync(applyFile, 'utf8')) : { entries: [] };
-  console.log(JSON.stringify(current, null, 2));
+  console.error(`Usage:
+  node scan.mjs                  # Scan jobs from LifeOS
+  node apply.mjs apply <jobId>   # Generate CV/CL for job
+  node apply.mjs autofill <jobId> # Get form answers
+  node apply.mjs list           # List available jobs`);
 }
